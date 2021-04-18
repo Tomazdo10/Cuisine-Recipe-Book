@@ -77,10 +77,10 @@ class User:
             'user_id': session['user']['_id'],
             'recipe_name': request.form.get('recipe_name').lower(),
             'img_url': request.form.get('img_url'),
-            'ingredient_name': request.form.getlist('ingredient_name'),
-            'ingredient_amount': request.form.getlist('ingredient_amout'),
-            'unit': request.form.getlist('unit'),
-            'step_description': request.form.getlist('step_description')
+            'ingredients': request.form.getlist('ingredients'),
+            'preparation_time': request.form.getlist('preparation_time'),
+            'step_description': request.form.getlist('step_description'),
+            'cooking_time': request.form.getlist('cooking_time')
         }
 
         recipes.insert_one(recipe)
@@ -92,10 +92,10 @@ class User:
             'user_id': session['user']['_id'],
             'recipe_name': request.form.get('recipe_name').lower(),
             'img_url': request.form.get('img_url'),
-            'ingredient_name': request.form.getlist('ingredient_name'),
-            'ingredient_amount': request.form.getlist('ingredient_amout'),
-            'unit': request.form.getlist('unit'),
-            'step_description': request.form.getlist('step_description')
+            'ingredients': request.form.getlist('ingredients'),
+            'preparation_time': request.form.getlist('preparation_time'),
+            'step_description': request.form.getlist('step_description'),
+            'cooking_time': request.form.getlist('cooking_time')
         }
 
         recipes.update({'_id': ObjectId(recipe_id)}, recipe)
@@ -124,7 +124,7 @@ def prevent_misuse(f):
             return f(*args, **kwargs)
 
     return wrap
-    
+
 
 @app.route('/')
 @app.route('/home')
@@ -135,6 +135,7 @@ def home_page():
 
 @app.route('/recipes', methods=['GET', 'POST'])
 def recipes_page():
+    recipes = mongo.db.recipe
     value_searched = request.form.get("search_value")
     if value_searched:
         cursor = recipes.aggregate([
@@ -145,10 +146,10 @@ def recipes_page():
                 "_id": 1,
                 "img_url": 1,
                 "recipe_name": 1,
-                "ingredient_name": 1,
-                "ingredient_amount": 1,
-                "unit": 1,
+                "ingredients": 1,
+                "preparation_time": 1,
                 "step_description": 1,
+                "cooking_time": 1,
                 "score": {"$meta": "searchScore"}}}])
 
         return render_template('recipes.html', all_recipes=cursor)
@@ -158,6 +159,7 @@ def recipes_page():
 
 @app.route('/recipes/search', methods=['GET', 'POST'])
 def search_data():
+    recipes = mongo.db.recipe
     query_text = request.form.get('search_value')
 
     if not query_text:
@@ -169,16 +171,16 @@ def search_data():
         return json_data, 200
 
     cursor = recipes.aggregate([
-        {"$search": {"text": {"path": "recipe_name", "query": query_text},
+        {"$search": {"text": {"path": "recipe_name", "query": "query_text"},
                      "highlight": {"path": "recipe_name"}}},
         {"$project": {
             "_id": 1,
             "img_url": 1,
             "recipe_name": 1,
-            "ingredient_name": 1,
-            "ingredient_amount": 1,
-            "unit": 1,
+            "ingredients": 1,
+            "preperation_time": 1,
             "step_description": 1,
+            "cooking_time": 1,
             "score": {"$meta": "searchScore"}}}])
 
     list_cursor = list(cursor)
@@ -221,7 +223,7 @@ def signup_page():
             flash("username already exists")
             return redirect(url_for("signup"))
 
-        sign_up = {
+        signup = {
             "username": request.form.get("username").lower(),
             "password": generate_password_hash(request.form.get("password"))
         }
@@ -241,9 +243,9 @@ def login_page():
         existing_user = mongo.db.users.find_one(
             {"username": request.form.get("username").lower()}) 
 
-        
-    if  existing_user:
-        # ensure hashed password matches users input
+
+    if existing_user:
+
         if check_password_hash(
             existing_user['password'], request.form.get('password')):
             session["user"] = request.form.get("username").lower()
@@ -324,6 +326,7 @@ def delete_recipe(recipe_id):
 
 @app.route('/view_recipe/<recipe_id>')
 def view_recipe(recipe_id):
+    recipes = mongo.db.recipe
     recipe = recipes.find_one({'_id': ObjectId(recipe_id)})
     ingredients = zip(recipe['ingredient_name'],
                       recipe['ingredient_amount'],
